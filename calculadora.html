@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="es">
+<meta charset="utf-8" />
+<title>Índices antropométricos</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<style>
+  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial,sans-serif;max-width:720px;margin:40px auto;padding:0 16px;line-height:1.5}
+  .card{border:1px solid #ddd;border-radius:14px;padding:18px}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  label{font-size:.9rem}
+  input{width:100%;padding:10px;border:1px solid #ccc;border-radius:10px}
+  .radios{display:flex;gap:14px;margin:6px 0 12px}
+  button{padding:10px 14px;border:0;border-radius:12px;background:#111;color:#fff;cursor:pointer}
+  #output{margin-top:16px;padding:12px;border-radius:12px;background:#f6f6f6}
+  small{color:#666}
+</style>
+<body>
+  <h1>Calculadora: IMC, Cintura/Cadera y Cintura/Talla</h1>
+  <div class="card">
+    <form id="form-indices">
+      <div class="row">
+        <div>
+          <label>Peso (kg)</label>
+          <input id="peso" type="number" step="0.1" min="0" required />
+        </div>
+        <div>
+          <label>Talla (m)</label>
+          <input id="talla" type="number" step="0.001" min="0" required />
+        </div>
+        <div>
+          <label>Cintura (cm)</label>
+          <input id="cintura" type="number" step="0.1" min="0" required />
+        </div>
+        <div>
+          <label>Cadera (cm)</label>
+          <input id="cadera" type="number" step="0.1" min="0" required />
+        </div>
+      </div>
+      <label>Sexo</label>
+      <div class="radios">
+        <label><input type="radio" name="sexo" value="M" required> Masculino</label>
+        <label><input type="radio" name="sexo" value="F" required> Femenino</label>
+      </div>
+      <button type="submit">Calcular</button>
+      <div id="output"></div>
+      <small>
+        IMC = kg/m² · ICC = cintura/cadera · WHtR = cintura/talla(cm).<br>
+        Cortes: ICC &gt;0.90 (H) / &gt;0.85 (M); WHtR &gt;0.5 = riesgo ↑.
+      </small>
+    </form>
+  </div>
+
+  <script>
+    function calcularIndices(peso, tallaM, cinturaCm, caderaCm, sexo) {
+      if (![peso, tallaM, cinturaCm, caderaCm].every(v => typeof v === "number" && isFinite(v) && v > 0)) {
+        throw new Error("Revisar que todos los valores sean números positivos.");
+      }
+      if (!["M", "F"].includes(sexo)) {
+        throw new Error('Sexo inválido. Use "M" o "F".');
+      }
+      const imc = peso / (tallaM ** 2);
+      const icc = cinturaCm / caderaCm;
+      const whtr = cinturaCm / (tallaM * 100);
+
+      let categoriaIMC = "";
+      if (imc < 18.5) categoriaIMC = "Bajo peso";
+      else if (imc < 25) categoriaIMC = "Normal";
+      else if (imc < 30) categoriaIMC = "Sobrepeso";
+      else categoriaIMC = "Obesidad";
+
+      const limiteICC = sexo === "M" ? 0.90 : 0.85;
+      const riesgoICC = icc > limiteICC ? "↑ riesgo" : "riesgo normal";
+      const riesgoWHtR = whtr > 0.5 ? "↑ riesgo" : "riesgo normal";
+
+      return {
+        IMC: Number(imc.toFixed(1)),
+        CategoriaIMC: categoriaIMC,
+        ICC: Number(icc.toFixed(2)),
+        RiesgoICC: riesgoICC,
+        WHtR: Number(whtr.toFixed(2)),
+        RiesgoWHtR: riesgoWHtR
+      };
+    }
+
+    document.getElementById("form-indices").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const out = document.getElementById("output");
+      try {
+        const peso = parseFloat(document.getElementById("peso").value);
+        const talla = parseFloat(document.getElementById("talla").value);
+        const cintura = parseFloat(document.getElementById("cintura").value);
+        const cadera = parseFloat(document.getElementById("cadera").value);
+        const sexo = document.querySelector('input[name="sexo"]:checked')?.value;
+
+        const r = calcularIndices(peso, talla, cintura, cadera, sexo);
+        out.innerHTML = `
+          <div><strong>IMC:</strong> ${r.IMC} (${r.CategoriaIMC})</div>
+          <div><strong>ICC:</strong> ${r.ICC} — ${r.RiesgoICC}</div>
+          <div><strong>WHtR:</strong> ${r.WHtR} — ${r.RiesgoWHtR}</div>
+        `;
+      } catch (err) {
+        out.textContent = err.message;
+      }
+    });
+  </script>
+</body>
+</html>

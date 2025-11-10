@@ -1,106 +1,145 @@
-// calculator.js — Evaluación Obesidad (v2.0)
+// calculator.js — Evaluación Obesidad (v3: cálculos independientes)
 
-// -------------------- FUNCIONES AUXILIARES --------------------
-function calcularIndices(peso, tallaM, cinturaCm, caderaCm, sexo) {
-  if (![peso, tallaM, cinturaCm, caderaCm].every(v => typeof v === "number" && isFinite(v) && v > 0)) {
-    throw new Error("Revisar que todos los valores sean números positivos.");
-  }
-  if (!["M", "F"].includes(sexo)) {
-    throw new Error('Sexo inválido. Use "M" o "F".');
-  }
-
-  const imc = peso / (tallaM ** 2);
-  const icc = cinturaCm / caderaCm;
-  const whtr = cinturaCm / (tallaM * 100); // talla en m → cm
-
-  let categoriaIMC = "";
-  if (imc < 18.5) categoriaIMC = "Bajo peso";
-  else if (imc < 25) categoriaIMC = "Normal";
-  else if (imc < 30) categoriaIMC = "Sobrepeso";
-  else categoriaIMC = "Obesidad";
-
-  const limiteICC = sexo === "M" ? 0.90 : 0.85;
-  const riesgoICC = icc > limiteICC ? "↑ riesgo" : "riesgo normal";
-  const riesgoWHtR = whtr > 0.5 ? "↑ riesgo" : "riesgo normal";
-
-  return {
-    IMC: Number(imc.toFixed(1)),
-    CategoriaIMC: categoriaIMC,
-    ICC: Number(icc.toFixed(2)),
-    RiesgoICC: riesgoICC,
-    WHtR: Number(whtr.toFixed(2)),
-    RiesgoWHtR: riesgoWHtR
-  };
+// -------- Helpers UI --------
+function badge(text, kind = "ok") {
+  return `<span class="badge ${kind}">${text}</span>`;
 }
-
-// Asignación de color por categoría
 function riskClassIMC(cat) {
   if (cat === "Normal") return "ok";
   if (cat === "Sobrepeso") return "warn";
   return "high"; // Bajo peso u Obesidad
 }
 function riskClass(flag) {
-  return flag.includes("↑") ? "high" : "ok";
+  return flag && flag.includes("↑") ? "high" : "ok";
+}
+function parseNum(el) {
+  const v = parseFloat(el?.value);
+  return Number.isFinite(v) && v > 0 ? v : null;
 }
 
-// -------------------- INICIALIZACIÓN DEL DOM --------------------
+// -------- Cálculos atómicos --------
+function calcIMC(peso, tallaM) {
+  if (peso == null || tallaM == null) return null;
+  const imc = peso / (tallaM ** 2);
+  let categoriaIMC = "";
+  if (imc < 18.5) categoriaIMC = "Bajo peso";
+  else if (imc < 25) categoriaIMC = "Normal";
+  else if (imc < 30) categoriaIMC = "Sobrepeso";
+  else categoriaIMC = "Obesidad";
+  return { IMC: Number(imc.toFixed(1)), CategoriaIMC: categoriaIMC };
+}
+
+function calcICC(cinturaCm, caderaCm, sexo) {
+  if (cinturaCm == null || caderaCm == null) return null;
+  const icc = cinturaCm / caderaCm;
+  let riesgoICC = "—";
+  if (sexo === "M" || sexo === "F") {
+    const limite = sexo === "M" ? 0.90 : 0.85;
+    riesgoICC = icc > limite ? "↑ riesgo" : "riesgo normal";
+  }
+  return { ICC: Number(icc.toFixed(2)), RiesgoICC: riesgoICC };
+}
+
+function calcWHtR(cinturaCm, tallaM) {
+  if (cinturaCm == null || tallaM == null) return null;
+  const whtr = cinturaCm / (tallaM * 100); // talla m→cm
+  const riesgoWHtR = whtr > 0.5 ? "↑ riesgo" : "riesgo normal";
+  return { WHtR: Number(whtr.toFixed(2)), RiesgoWHtR: riesgoWHtR };
+}
+
+// -------- Render --------
+function renderResultados(out, res) {
+  const blocks = [];
+
+  if (res.imc) {
+    blocks.push(
+      `<div><strong>IMC:</strong> ${res.imc.IMC} ${badge(res.imc.CategoriaIMC, riskClassIMC(res.imc.CategoriaIMC))}</div>`
+    );
+  } else {
+    blocks.push(`<div><strong>IMC:</strong> — ${badge("falta peso y/o talla","warn")}</div>`);
+  }
+
+  if (res.icc) {
+    const chip = res.icc.RiesgoICC === "—" ? badge("sin riesgo (sexo no indicado)", "warn")
+                                            : badge(res.icc.RiesgoICC, riskClass(res.icc.RiesgoICC));
+    blocks.push(
+      `<div><strong>ICC (cintura/cadera):</strong> ${res.icc.ICC} ${chip}</div>`
+    );
+  } else {
+    blocks.push(`<div><strong>ICC:</strong> — ${badge("falta cintura y/o cadera","warn")}</div>`);
+  }
+
+  if (res.whtr) {
+    blocks.push(
+      `<div><strong>WHtR (cintura/talla):</strong> ${res.whtr.WHtR} ${badge(res.whtr.RiesgoWHtR, riskClass(res.whtr.RiesgoWHtR))}</div>`
+    );
+  } else {
+    blocks.push(`<div><strong>WHtR:</strong> — ${badge("falta cintura y/o talla","warn")}</div>`);
+  }
+
+  // Acciones solo si hay al menos un resultado
+  const algo = res.imc || res.icc || res.whtr;
+  const actions = algo ? `
+    <div id="actions">
+      <button type="button" id="copy" class="secondary">Copiar JSON</button>
+      <button type="button" id="csv" class="secondary">Descargar CSV</button>
+    </div>` : "";
+
+  out.innerHTML = blocks.join("\n") + actions;
+
+  if (algo) {
+    document.getElementById("copy").onclick = () => {
+      navigator.clipboard.writeText(JSON.stringify(res.payload, null, 2));
+    };
+    document.getElementById("csv").onclick = () => {
+      const headers = Object.keys(res.payload);
+      const values = headers.map(k => res.payload[k] ?? "");
+      const csv = headers.join(",") + "\n" + values.join(",");
+      const blob = new Blob([csv], { type: "text/csv" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "indices_antropometricos.csv";
+      a.click();
+      URL.revokeObjectURL(a.href);
+    };
+  }
+}
+
+// -------- Wiring DOM --------
 window.addEventListener("DOMContentLoaded", () => {
   const form = document.getElementById("form-indices");
   const out = document.getElementById("output");
-
   if (!form || !out) return;
 
   form.addEventListener("submit", (e) => {
     e.preventDefault();
-    try {
-      const peso = parseFloat(document.getElementById("peso").value);
-      const talla = parseFloat(document.getElementById("talla").value);
-      const cintura = parseFloat(document.getElementById("cintura").value);
-      const cadera = parseFloat(document.getElementById("cadera").value);
-      const sexo = document.querySelector('input[name="sexo"]:checked')?.value;
 
-      const r = calcularIndices(peso, talla, cintura, cadera, sexo);
+    // leer inputs (si faltan, quedan en null y se calculan los que se puedan)
+    const peso    = parseNum(document.getElementById("peso"));
+    const talla   = parseNum(document.getElementById("talla"));
+    const cintura = parseNum(document.getElementById("cintura"));
+    const cadera  = parseNum(document.getElementById("cadera"));
+    const sexo    = document.querySelector('input[name="sexo"]:checked')?.value || null;
 
-      out.innerHTML = `
-        <div><strong>IMC:</strong> ${r.IMC} 
-          <span class="badge ${riskClassIMC(r.CategoriaIMC)}">${r.CategoriaIMC}</span>
-        </div>
+    const res = {
+      imc:  calcIMC(peso, talla),
+      icc:  calcICC(cintura, cadera, sexo),
+      whtr: calcWHtR(cintura, talla),
+      // payload para copiar/exportar
+      payload: {
+        peso, talla, cintura, cadera, sexo,
+        ...(calcIMC(peso, talla)  ?? {}),
+        ...(calcICC(cintura, cadera, sexo) ?? {}),
+        ...(calcWHtR(cintura, talla) ?? {})
+      }
+    };
 
-        <div><strong>ICC (cintura/cadera):</strong> ${r.ICC} 
-          <span class="badge ${riskClass(r.RiesgoICC)}">${r.RiesgoICC}</span>
-        </div>
-
-        <div><strong>WHtR (cintura/talla):</strong> ${r.WHtR} 
-          <span class="badge ${riskClass(r.RiesgoWHtR)}">${r.RiesgoWHtR}</span>
-        </div>
-
-        <div id="actions">
-          <button type="button" id="copy" class="secondary">Copiar JSON</button>
-          <button type="button" id="csv" class="secondary">Descargar CSV</button>
-        </div>
-      `;
-
-      // Copiar como JSON
-      document.getElementById("copy").onclick = () => {
-        const data = {peso, talla, cintura, cadera, sexo, ...r};
-        navigator.clipboard.writeText(JSON.stringify(data, null, 2));
-      };
-
-      // Exportar CSV
-      document.getElementById("csv").onclick = () => {
-        const headers = ["peso","talla","cintura","cadera","sexo","IMC","CategoriaIMC","ICC","RiesgoICC","WHtR","RiesgoWHtR"];
-        const values = [peso,talla,cintura,cadera,sexo,r.IMC,r.CategoriaIMC,r.ICC,r.RiesgoICC,r.WHtR,r.RiesgoWHtR];
-        const csv = headers.join(",") + "\n" + values.join(",");
-        const blob = new Blob([csv], {type:"text/csv"});
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(blob);
-        a.download = "indices_antropometricos.csv";
-        a.click();
-        URL.revokeObjectURL(a.href);
-      };
-
-    } catch (err) {
-      out.textContent = err.message;
+    // si nada se puede calcular, avisar sin romper
+    if (!res.imc && !res.icc && !res.whtr) {
+      out.innerHTML = `<div>${badge("Ingresá al menos los datos de un índice","high")}</div>`;
+      return;
     }
+
+    renderResultados(out, res);
   });
 });

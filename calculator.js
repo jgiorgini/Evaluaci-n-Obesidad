@@ -1,6 +1,6 @@
-// calculator.js — Evaluación Obesidad (v3: cálculos independientes)
+// calculator.js — Evaluación Obesidad (v3, sin JSON/CSV)
 
-// -------- Helpers UI --------
+// ---------- utilidades ----------
 function badge(text, kind = "ok") {
   return `<span class="badge ${kind}">${text}</span>`;
 }
@@ -17,7 +17,7 @@ function parseNum(el) {
   return Number.isFinite(v) && v > 0 ? v : null;
 }
 
-// -------- Cálculos atómicos --------
+// ---------- cálculos independientes ----------
 function calcIMC(peso, tallaM) {
   if (peso == null || tallaM == null) return null;
   const imc = peso / (tallaM ** 2);
@@ -47,14 +47,14 @@ function calcWHtR(cinturaCm, tallaM) {
   return { WHtR: Number(whtr.toFixed(2)), RiesgoWHtR: riesgoWHtR };
 }
 
-// -------- Render --------
+// ---------- render ----------
 function renderResultados(out, res) {
   const blocks = [];
 
   if (res.imc) {
     blocks.push(
       `<div><strong>IMC:</strong> ${res.imc.IMC} 
-        <span class="badge ${riskClassIMC(res.imc.CategoriaIMC)}">${res.imc.CategoriaIMC}</span>
+        ${badge(res.imc.CategoriaIMC, riskClassIMC(res.imc.CategoriaIMC))}
       </div>`
     );
   } else {
@@ -62,8 +62,9 @@ function renderResultados(out, res) {
   }
 
   if (res.icc) {
-    const chip = res.icc.RiesgoICC === "—" ? badge("sin riesgo (sexo no indicado)", "warn")
-                                            : badge(res.icc.RiesgoICC, riskClass(res.icc.RiesgoICC));
+    const chip = res.icc.RiesgoICC === "—"
+      ? badge("sin riesgo (sexo no indicado)", "warn")
+      : badge(res.icc.RiesgoICC, riskClass(res.icc.RiesgoICC));
     blocks.push(
       `<div><strong>ICC (cintura/cadera):</strong> ${res.icc.ICC} ${chip}</div>`
     );
@@ -81,39 +82,10 @@ function renderResultados(out, res) {
     blocks.push(`<div><strong>WHtR:</strong> — ${badge("falta cintura y/o talla","warn")}</div>`);
   }
 
-  out.innerHTML = blocks.join("\n");
+  out.innerHTML = blocks.join("\n"); // ← sin botones
 }
 
-
-  // Acciones solo si hay al menos un resultado
-  const algo = res.imc || res.icc || res.whtr;
-  const actions = algo ? `
-    <div id="actions">
-      <button type="button" id="copy" class="secondary">Copiar JSON</button>
-      <button type="button" id="csv" class="secondary">Descargar CSV</button>
-    </div>` : "";
-
-  out.innerHTML = blocks.join("\n") + actions;
-
-  if (algo) {
-    document.getElementById("copy").onclick = () => {
-      navigator.clipboard.writeText(JSON.stringify(res.payload, null, 2));
-    };
-    document.getElementById("csv").onclick = () => {
-      const headers = Object.keys(res.payload);
-      const values = headers.map(k => res.payload[k] ?? "");
-      const csv = headers.join(",") + "\n" + values.join(",");
-      const blob = new Blob([csv], { type: "text/csv" });
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = "indices_antropometricos.csv";
-      a.click();
-      URL.revokeObjectURL(a.href);
-    };
-  }
-}
-
-// -------- Wiring DOM --------
+// ---------- wiring DOM ----------
 window.addEventListener("DOMContentLoaded", () => {
   const form = document.getElementById("form-indices");
   const out = document.getElementById("output");
@@ -122,7 +94,6 @@ window.addEventListener("DOMContentLoaded", () => {
   form.addEventListener("submit", (e) => {
     e.preventDefault();
 
-    // leer inputs (si faltan, quedan en null y se calculan los que se puedan)
     const peso    = parseNum(document.getElementById("peso"));
     const talla   = parseNum(document.getElementById("talla"));
     const cintura = parseNum(document.getElementById("cintura"));
@@ -133,16 +104,8 @@ window.addEventListener("DOMContentLoaded", () => {
       imc:  calcIMC(peso, talla),
       icc:  calcICC(cintura, cadera, sexo),
       whtr: calcWHtR(cintura, talla),
-      // payload para copiar/exportar
-      payload: {
-        peso, talla, cintura, cadera, sexo,
-        ...(calcIMC(peso, talla)  ?? {}),
-        ...(calcICC(cintura, cadera, sexo) ?? {}),
-        ...(calcWHtR(cintura, talla) ?? {})
-      }
     };
 
-    // si nada se puede calcular, avisar sin romper
     if (!res.imc && !res.icc && !res.whtr) {
       out.innerHTML = `<div>${badge("Ingresá al menos los datos de un índice","high")}</div>`;
       return;
@@ -151,4 +114,3 @@ window.addEventListener("DOMContentLoaded", () => {
     renderResultados(out, res);
   });
 });
-

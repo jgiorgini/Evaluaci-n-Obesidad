@@ -53,7 +53,9 @@ function renderResultados(out, res) {
 
   if (res.imc) {
     blocks.push(
-      `<div><strong>IMC:</strong> ${res.imc.IMC} ${badge(res.imc.CategoriaIMC, riskClassIMC(res.imc.CategoriaIMC))}</div>`
+      `<div><strong>IMC:</strong> ${res.imc.IMC} 
+        <span class="badge ${riskClassIMC(res.imc.CategoriaIMC)}">${res.imc.CategoriaIMC}</span>
+      </div>`
     );
   } else {
     blocks.push(`<div><strong>IMC:</strong> — ${badge("falta peso y/o talla","warn")}</div>`);
@@ -71,11 +73,17 @@ function renderResultados(out, res) {
 
   if (res.whtr) {
     blocks.push(
-      `<div><strong>WHtR (cintura/talla):</strong> ${res.whtr.WHtR} ${badge(res.whtr.RiesgoWHtR, riskClass(res.whtr.RiesgoWHtR))}</div>`
+      `<div><strong>WHtR (cintura/talla):</strong> ${res.whtr.WHtR} 
+        ${badge(res.whtr.RiesgoWHtR, riskClass(res.whtr.RiesgoWHtR))}
+      </div>`
     );
   } else {
     blocks.push(`<div><strong>WHtR:</strong> — ${badge("falta cintura y/o talla","warn")}</div>`);
   }
+
+  out.innerHTML = blocks.join("\n");
+}
+
 
   // Acciones solo si hay al menos un resultado
   const algo = res.imc || res.icc || res.whtr;
@@ -143,3 +151,4 @@ window.addEventListener("DOMContentLoaded", () => {
     renderResultados(out, res);
   });
 });
+

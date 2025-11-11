@@ -38,6 +38,62 @@
       padding:10px 14px;border:0;border-radius:12px;background:var(--btn);color:var(--btn-fg);cursor:pointer
     }
     #output{margin-top:16px;padding:14px;border-radius:12px;background:var(--muted)}
+    <!-- ============================= -->
+<!-- Criterios diagnósticos antropométricos -->
+<!-- ============================= -->
+
+<section id="criterios-antropometricos" style="margin-top:28px;">
+  <h2 style="margin-bottom:14px;">Criterios diagnósticos antropométricos</h2>
+  <p style="font-size:0.95rem;color:#444;max-width:720px;">
+    Los criterios antropométricos permiten identificar el grado de exceso adiposo y el riesgo cardiometabólico. 
+    Deben interpretarse junto con medidas de función orgánica y composición corporal para establecer el diagnóstico clínico de obesidad.
+  </p>
+
+  <div class="criterios-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:16px;margin-top:16px;">
+
+    <!-- BMI -->
+    <div class="criterio-card" style="background:#f9f9f9;border:1px solid #e1e1e1;border-radius:14px;padding:16px;">
+      <h3 style="margin-top:0;">Índice de Masa Corporal (BMI)</h3>
+      <p style="font-size:0.9rem;color:#555;">Umbrales útiles para cribado poblacional; se recomienda complementar con medidas de adiposidad y función orgánica.</p>
+      <ul style="line-height:1.6;margin:0;padding-left:20px;">
+        <li><strong>Bajo peso:</strong> &lt; 18.5 kg/m²</li>
+        <li><strong>Normopeso:</strong> 18.5 – 24.9 kg/m²</li>
+        <li><strong>Sobrepeso:</strong> 25 – 29.9 kg/m²</li>
+        <li><strong>Obesidad clase I:</strong> 30 – 34.9 kg/m²</li>
+        <li><strong>Obesidad clase II:</strong> 35 – 39.9 kg/m²</li>
+        <li><strong>Obesidad clase III (mórbida):</strong> ≥ 40 kg/m²</li>
+      </ul>
+    </div>
+
+    <!-- WHtR -->
+    <div class="criterio-card" style="background:#f9f9f9;border:1px solid #e1e1e1;border-radius:14px;padding:16px;">
+      <h3 style="margin-top:0;">Relación cintura/talla (WHtR)</h3>
+      <p style="font-size:0.9rem;color:#555;">Indicador sensible del riesgo cardiometabólico. Se calcula dividiendo la circunferencia de cintura (cm) por la talla (cm).</p>
+      <ul style="line-height:1.6;margin:0;padding-left:20px;">
+        <li><strong>Normal:</strong> &lt; 0.50</li>
+        <li><strong>Riesgo elevado:</strong> 0.50 – 0.59</li>
+        <li><strong>Riesgo muy alto:</strong> ≥ 0.60</li>
+      </ul>
+    </div>
+
+    <!-- ICC -->
+    <div class="criterio-card" style="background:#f9f9f9;border:1px solid #e1e1e1;border-radius:14px;padding:16px;">
+      <h3 style="margin-top:0;">Relación cintura/cadera (ICC)</h3>
+      <p style="font-size:0.9rem;color:#555;">Identifica la distribución de grasa corporal y el fenotipo androide (visceral), asociado a mayor riesgo metabólico y cardiovascular.</p>
+      <ul style="line-height:1.6;margin:0;padding-left:20px;">
+        <li><strong>Varones:</strong> riesgo aumentado &gt; 0.90</li>
+        <li><strong>Mujeres:</strong> riesgo aumentado &gt; 0.85</li>
+      </ul>
+    </div>
+
+  </div>
+
+  <p style="font-size:0.9rem;color:#555;margin-top:18px;">
+    <em>Fuentes:</em> Rubino F, et al. <strong>Definition and diagnostic criteria of clinical obesity.</strong> 
+    <em>Lancet Diabetes & Endocrinology.</em> 2025; y Organización Mundial de la Salud (OMS).
+  </p>
+</section>
+
     small{color:#666}
 
     /* Badges con colores suaves */
@@ -88,3 +144,4 @@
   <script src="calculator.js"></script>
 </body>
 </html>
+

@@ -1,17 +1,24 @@
-// calculator.js — Evaluación Obesidad (v4)
-// - Cálculos independientes (IMC / ICC / WHtR)
-// - Badges de riesgo (ok/warn/high)
-// - Responsive ya manejado por CSS del HTML
-// - Hook de integración STCA (evento y callback)
+// calculator.js — Evaluación Obesidad (v5)
+// ---------------------------------------
+// - Cálculos independientes (IMC, ICC, WHtR)
+// - Clasificación de IMC con estadio y color
+// - Diseño compatible con el HTML actual
+// - API STCA (evento anthro:calculated + callback)
 
 //////////////////// utilidades UI ////////////////////
 function badge(text, kind = "ok") {
   return `<span class="badge ${kind}">${text}</span>`;
 }
 function riskClassIMC(cat) {
-  if (cat === "Normal") return "ok";
-  if (cat === "Sobrepeso") return "warn";
-  return "high"; // Bajo peso u Obesidad
+  switch (cat) {
+    case "Normal": return "ok";
+    case "Sobrepeso": return "warn";
+    case "Obesidad clase I":
+    case "Obesidad clase II":
+    case "Obesidad clase III":
+      return "high";
+    default: return "warn"; // bajo peso
+  }
 }
 function riskClass(flag) {
   return flag && flag.includes("↑") ? "high" : "ok";
@@ -25,13 +32,18 @@ function parseNum(el) {
 function calcIMC(peso, tallaM) {
   if (peso == null || tallaM == null) return null;
   const imc = peso / (tallaM ** 2);
+
   let categoriaIMC = "";
   if (imc < 18.5) categoriaIMC = "Bajo peso";
   else if (imc < 25) categoriaIMC = "Normal";
   else if (imc < 30) categoriaIMC = "Sobrepeso";
-  else categoriaIMC = "Obesidad";
+  else if (imc < 35) categoriaIMC = "Obesidad clase I";
+  else if (imc < 40) categoriaIMC = "Obesidad clase II";
+  else categoriaIMC = "Obesidad clase III";
+
   return { IMC: Number(imc.toFixed(1)), CategoriaIMC: categoriaIMC };
 }
+
 function calcICC(cinturaCm, caderaCm, sexo) {
   if (cinturaCm == null || caderaCm == null) return null;
   const icc = cinturaCm / caderaCm;
@@ -42,10 +54,13 @@ function calcICC(cinturaCm, caderaCm, sexo) {
   }
   return { ICC: Number(icc.toFixed(2)), RiesgoICC: riesgoICC };
 }
+
 function calcWHtR(cinturaCm, tallaM) {
   if (cinturaCm == null || tallaM == null) return null;
-  const whtr = cinturaCm / (tallaM * 100); // talla en m → cm
-  const riesgoWHtR = whtr > 0.5 ? "↑ riesgo" : "riesgo normal";
+  const whtr = cinturaCm / (tallaM * 100);
+  let riesgoWHtR = "riesgo normal";
+  if (whtr >= 0.6) riesgoWHtR = "↑↑ riesgo muy alto";
+  else if (whtr >= 0.5) riesgoWHtR = "↑ riesgo";
   return { WHtR: Number(whtr.toFixed(2)), RiesgoWHtR: riesgoWHtR };
 }
 
@@ -53,14 +68,19 @@ function calcWHtR(cinturaCm, tallaM) {
 function renderResultados(out, res) {
   const blocks = [];
 
+  // --- IMC ---
   if (res.imc) {
+    const cat = res.imc.CategoriaIMC;
     blocks.push(
-      `<div><strong>IMC:</strong> ${res.imc.IMC} ${badge(res.imc.CategoriaIMC, riskClassIMC(res.imc.CategoriaIMC))}</div>`
+      `<div><strong>IMC:</strong> ${res.imc.IMC} kg/m² 
+        ${badge(cat, riskClassIMC(cat))}
+      </div>`
     );
   } else {
     blocks.push(`<div><strong>IMC:</strong> — ${badge("falta peso y/o talla","warn")}</div>`);
   }
 
+  // --- ICC ---
   if (res.icc) {
     const chip = res.icc.RiesgoICC === "—"
       ? badge("sin riesgo (sexo no indicado)", "warn")
@@ -70,10 +90,10 @@ function renderResultados(out, res) {
     blocks.push(`<div><strong>ICC:</strong> — ${badge("falta cintura y/o cadera","warn")}</div>`);
   }
 
+  // --- WHtR ---
   if (res.whtr) {
-    blocks.push(
-      `<div><strong>WHtR (cintura/talla):</strong> ${res.whtr.WHtR} ${badge(res.whtr.RiesgoWHtR, riskClass(res.whtr.RiesgoWHtR))}</div>`
-    );
+    const chip = badge(res.whtr.RiesgoWHtR, riskClass(res.whtr.RiesgoWHtR));
+    blocks.push(`<div><strong>WHtR (cintura/talla):</strong> ${res.whtr.WHtR} ${chip}</div>`);
   } else {
     blocks.push(`<div><strong>WHtR:</strong> — ${badge("falta cintura y/o talla","warn")}</div>`);
   }
@@ -82,7 +102,6 @@ function renderResultados(out, res) {
 }
 
 //////////////////// integración STCA ////////////////////
-// Expone un API global y emite evento con cada cálculo
 const ObesityCalc = (() => {
   let last = null;
   let listener = null;
@@ -95,20 +114,16 @@ const ObesityCalc = (() => {
 
     last = { peso, talla, cintura, cadera, sexo, ...(imc||{}), ...(icc||{}), ...(whtr||{}) };
 
-    // Evento DOM para otros módulos
     const ev = new CustomEvent("anthro:calculated", { detail: last });
     window.dispatchEvent(ev);
-
-    // Callback opcional
     if (typeof listener === "function") listener(last);
-
     return last;
   }
 
   return {
-    compute,                    // ObesityCalc.compute({peso,talla,cintura,cadera,sexo})
-    onResults(cb){ listener = cb }, // ObesityCalc.onResults((data)=>{...})
-    getLast(){ return last }    // ObesityCalc.getLast()
+    compute,
+    onResults(cb){ listener = cb },
+    getLast(){ return last }
   };
 })();
 window.ObesityCalc = ObesityCalc;
